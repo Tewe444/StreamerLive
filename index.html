@@ -1,429 +1,413 @@
 <!DOCTYPE html>
-<html lang="de" class="dark">
+<html lang="de" class="h-full bg-zinc-950 text-zinc-100 dark">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streamer Live Hub</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        darkBg: '#050505',
-                        cardBg: '#0e0e10',
-                        twitch: '#9146ff',
-                        youtube: '#ff0000',
-                    }
-                }
-            }
-        }
-    </script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-        
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #050505;
-            color: #ffffff;
-        }
-
-        /* Pulsierender roter Punkt für aktive Live-Streams */
-        .live-dot {
-            position: absolute;
-            top: -4px;
-            right: -4px;
-            width: 10px;
-            height: 10px;
-            background-color: #ef4444;
-            border: 2px solid #0e0e10;
-            border-radius: 9999px;
-            box-shadow: 0 0 8px #ef4444;
-            animation: pulse-ring 1.5s infinite ease-in-out;
-        }
-
-        @keyframes pulse-ring {
-            0% { transform: scale(0.9); opacity: 1; }
-            50% { transform: scale(1.35); opacity: 0.7; }
-            100% { transform: scale(0.9); opacity: 1; }
-        }
-
-        /* Minimalistische Rahmen-Effekte */
-        .streamer-row {
-            transition: border-color 0.2s ease, background-color 0.2s ease;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streamer Live Hub</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+    @keyframes pulse-ring {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 0.3; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .live-dot-pulse::before {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 9999px;
+      background-color: #ef4444;
+      animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      z-index: 0;
+    }
+  </style>
 </head>
-<body class="min-h-screen flex flex-col justify-between selection:bg-white selection:text-black">
+<body class="h-full flex flex-col bg-zinc-950 text-zinc-100 antialiased selection:bg-zinc-800 selection:text-white">
 
-    <!-- TOP BAR -->
-    <header class="border-b border-neutral-800/80 bg-neutral-950/90 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            
-            <!-- Category Switcher -->
-            <div id="nav-category-toggle" class="hidden flex items-center space-x-1 bg-neutral-900 p-1 rounded-xl border border-neutral-800">
-                <button onclick="switchCategory('rl')" id="btn-nav-rl" class="px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
-                    Rocket League
-                </button>
-                <button onclick="switchCategory('mc')" id="btn-nav-mc" class="px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-2">
-                    Minecraft
-                </button>
-            </div>
+  <!-- Minimalist Dynamic Category Header -->
+  <header class="border-b border-zinc-900 bg-zinc-950/90 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      
+      <!-- Dynamic Title (Rocket League Name or Minecraft Text) -->
+      <div id="category-title" class="flex items-center space-x-2">
+        <!-- Rendered via JS based on selected mode -->
+      </div>
 
-            <div id="nav-placeholder" class="text-xs font-bold text-neutral-400 tracking-wider uppercase">
-                Streamer Hub
-            </div>
+      <!-- Mode Selector: Strictly Exclusive (Rocket League OR Minecraft) -->
+      <div class="flex items-center bg-zinc-900 p-1 rounded-xl border border-zinc-800/80">
+        <button id="btn-rl" onclick="setMode('rl')" class="px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150">
+          Rocket League
+        </button>
+        <button id="btn-mc" onclick="setMode('mc')" class="px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150">
+          Minecraft
+        </button>
+      </div>
 
-            <!-- Action Buttons -->
-            <div class="flex items-center gap-2">
-                <button onclick="refreshStatus()" title="WhosLive Status abfragen" class="bg-neutral-900 hover:bg-neutral-800 border border-neutral-800 text-neutral-300 p-2 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold transition flex items-center gap-2">
-                    <i id="refresh-icon" class="fa-solid fa-arrows-rotate text-white"></i>
-                    <span class="hidden sm:inline">WhosLive Abfrage</span>
-                </button>
-                <button onclick="toggleModal(true)" class="bg-white hover:bg-neutral-200 text-black font-extrabold px-3.5 py-1.5 rounded-xl text-xs transition">
-                    + Creator
-                </button>
-            </div>
-        </div>
-    </header>
+    </div>
+  </header>
 
-    <main class="flex-grow">
-        <!-- 1. STARTSEITE: SELECTION SCREEN (Schlicht & Ohne Marken-Logos) -->
-        <section id="category-selector-screen" class="max-w-3xl mx-auto px-4 py-20 text-center">
-            <h1 class="text-4xl sm:text-6xl font-black text-white tracking-tight mb-3">
-                STREAMER HUB
-            </h1>
-            <p class="text-neutral-400 text-sm max-w-sm mx-auto mb-12 font-medium">
-                Wähle eine Kategorie, um die Live-Kanäle und Ränge anzuzeigen.
-            </p>
-
-            <div class="grid sm:grid-cols-2 gap-6 max-w-xl mx-auto">
-                <!-- ROCKET LEAGUE CARD -->
-                <div onclick="switchCategory('rl')" class="group bg-neutral-900/50 border border-neutral-800 hover:border-white p-8 rounded-2xl cursor-pointer transition duration-200 text-left flex flex-col justify-between">
-                    <div>
-                        <div class="text-xs font-mono font-bold text-neutral-500 uppercase tracking-widest mb-3">Kategorie 01</div>
-                        <h2 class="text-2xl font-black text-white mb-2">ROCKET LEAGUE</h2>
-                        <p class="text-neutral-400 text-xs leading-relaxed">Ränge stehen direkt & sofort unter jedem Streamer-Namen.</p>
-                    </div>
-                    <div class="mt-8 text-xs font-extrabold text-white flex items-center gap-2">
-                        <span>Kanäle anzeigen</span>
-                        <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition"></i>
-                    </div>
-                </div>
-
-                <!-- MINECRAFT CARD -->
-                <div onclick="switchCategory('mc')" class="group bg-neutral-900/50 border border-neutral-800 hover:border-white p-8 rounded-2xl cursor-pointer transition duration-200 text-left flex flex-col justify-between">
-                    <div>
-                        <div class="text-xs font-mono font-bold text-neutral-500 uppercase tracking-widest mb-3">Kategorie 02</div>
-                        <h2 class="text-2xl font-black text-white mb-2">MINECRAFT</h2>
-                        <p class="text-neutral-400 text-xs leading-relaxed">Schlichte Ansicht mit verifizierten 3D-Köpfen.</p>
-                    </div>
-                    <div class="mt-8 text-xs font-extrabold text-white flex items-center gap-2">
-                        <span>Kanäle anzeigen</span>
-                        <i class="fa-solid fa-arrow-right text-[10px] group-hover:translate-x-1 transition"></i>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- 2. STREAMER LIST (Full-Width Zeilen) -->
-        <section id="dashboard-screen" class="hidden max-w-5xl mx-auto px-4 py-8">
-            <div class="flex items-center justify-between mb-6">
-                <div>
-                    <h2 id="dashboard-title" class="text-xl font-extrabold text-white flex items-center gap-3">
-                        <!-- Dynamic Title -->
-                    </h2>
-                    <p id="dashboard-subtitle" class="text-xs text-neutral-500 mt-0.5">Live-Streamer stehen immer ganz oben</p>
-                </div>
-
-                <button onclick="showCategorySelector()" class="text-xs font-semibold text-neutral-400 hover:text-white bg-neutral-900 px-3 py-1.5 rounded-xl border border-neutral-800 transition flex items-center gap-1.5">
-                    <i class="fa-solid fa-chevron-left text-[10px]"></i> Wechseln
-                </button>
-            </div>
-
-            <!-- STREAMERS CONTAINER -->
-            <div id="streamer-list" class="space-y-2">
-                <!-- Rows dynamically injected here -->
-            </div>
-        </section>
-    </main>
-
-    <!-- FOOTER -->
-    <footer class="border-t border-neutral-900 py-4 text-center text-neutral-600 text-xs">
-        Streamer Hub • Schwarz-Weiß Minimal Design
-    </footer>
-
-    <!-- ADD STREAMER MODAL -->
-    <div id="add-modal" class="fixed inset-0 bg-black/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
-        <div class="bg-neutral-900 border border-neutral-800 rounded-2xl max-w-md w-full p-6 relative shadow-2xl">
-            <button onclick="toggleModal(false)" class="absolute top-4 right-4 text-neutral-400 hover:text-white">
-                <i class="fa-solid fa-xmark"></i>
-            </button>
-            <h3 class="text-base font-bold text-white mb-4">Neuen Creator eintragen</h3>
-
-            <form id="add-streamer-form" onsubmit="handleAddStreamer(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-semibold text-neutral-300 mb-1">Streamer / Kanal Name *</label>
-                    <input type="text" id="input-name" required placeholder="z.B. Zen, BastiGHG" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold text-neutral-300 mb-1">Kategorie *</label>
-                    <select id="input-category" onchange="toggleFormFields()" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                        <option value="rl">Rocket League</option>
-                        <option value="mc">Minecraft</option>
-                    </select>
-                </div>
-
-                <div id="rl-fields">
-                    <label class="block text-xs font-semibold text-neutral-300 mb-1">Rocket League Rang</label>
-                    <input type="text" id="input-rl-rank" placeholder="z.B. Supersonic Legend, Grand Champion III" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                </div>
-
-                <div id="mc-fields" class="hidden">
-                    <label class="block text-xs font-semibold text-neutral-300 mb-1">Minecraft Account Name (für 3D-Kopf)</label>
-                    <input type="text" id="input-mc-user" placeholder="Falls abweichend von Name" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-semibold text-neutral-300 mb-1">Twitch Benutzername</label>
-                        <input type="text" id="input-twitch" placeholder="Kanalname" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-neutral-300 mb-1">YouTube Handle</label>
-                        <input type="text" id="input-yt" placeholder="@Kanalname" class="w-full bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-white">
-                    </div>
-                </div>
-
-                <button type="submit" class="w-full bg-white hover:bg-neutral-200 text-black font-extrabold py-2.5 rounded-xl text-xs transition mt-2">
-                    Eintragen
-                </button>
-            </form>
-        </div>
+  <!-- Main Content Container (Full Width Rows) -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6">
+    
+    <!-- Streamers List Container -->
+    <div id="streamer-list" class="space-y-2.5">
+      <!-- Streamer rows dynamically inserted -->
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        // Creator Datenbank
-        const streamers = [
-            // Rocket League Streamers
-            { id: 'zen', name: "Zen", category: "rl", rlRank: "Supersonic Legend", twitch: "zenrll", youtube: "@zenrl", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'vatira', name: "Vatira", category: "rl", rlRank: "Supersonic Legend", twitch: "vatira7", youtube: "", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'appjack', name: "AppJack", category: "rl", rlRank: "Grand Champion III", twitch: "apparentlyjack", youtube: "@ApparentlyJack", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'johnnyboi_i', name: "JohnnyBoi_i", category: "rl", rlRank: "Grand Champion II", twitch: "johnnyboi_i", youtube: "@JohnnyBoi_i", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'feer', name: "Feer", category: "rl", rlRank: "Grand Champion I", twitch: "feer", youtube: "@FeerRL", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'squishy', name: "SquishyMuffinz", category: "rl", rlRank: "Supersonic Legend", twitch: "squishymuffinz", youtube: "@SquishyMuffinz", mcUser: "", isTwitchLive: false, isYtLive: false },
-            { id: 'rizo', name: "Rizzo", category: "rl", rlRank: "Grand Champion II", twitch: "rizzo", youtube: "@Rizzo", mcUser: "", isTwitchLive: false, isYtLive: false },
+  </main>
 
-            // Minecraft Streamers
-            { id: 'bastighg', name: "BastiGHG", category: "mc", rlRank: "", twitch: "bastighg", youtube: "@BastiGHG", mcUser: "BastiGHG", isTwitchLive: false, isYtLive: false },
-            { id: 'trymacs', name: "Trymacs", category: "mc", rlRank: "", twitch: "trymacs", youtube: "@Trymacs", mcUser: "Trymacs", isTwitchLive: false, isYtLive: false },
-            { id: 'sparkofphoenix', name: "SparkOfPhoenix", category: "mc", rlRank: "", twitch: "sparkofphoenix", youtube: "@SparkOfPhoenix", mcUser: "SparkOfPhoenix", isTwitchLive: false, isYtLive: false },
-            { id: 'papaplatte', name: "Papaplatte", category: "mc", rlRank: "", twitch: "papaplatte", youtube: "@Papaplatte", mcUser: "Papaplatte", isTwitchLive: false, isYtLive: false },
-            { id: 'paluten', name: "Paluten", category: "mc", rlRank: "", twitch: "paluten", youtube: "@Paluten", mcUser: "Paluten", isTwitchLive: false, isYtLive: false }
-        ];
+  <script>
+    // Streamer Daten nach Kategorien getrennt
+    const streamersData = {
+      rl: [
+        {
+          id: "squishy",
+          name: "SquishyMuffinz",
+          twitch: "squishymuffinz",
+          youtube: "https://www.youtube.com/@SquishyMuffinz",
+          rlRank: "Supersonic Legend",
+          status: "unknown" // 'live', 'offline', 'unknown'
+        },
+        {
+          id: "appjack",
+          name: "ApparentlyJack",
+          twitch: "apparentlyjack",
+          youtube: "https://www.youtube.com/@ApparentlyJack",
+          rlRank: "Supersonic Legend",
+          status: "unknown"
+        },
+        {
+          id: "vatira",
+          name: "Vatira",
+          twitch: "vatira",
+          youtube: null,
+          rlRank: "Supersonic Legend",
+          status: "unknown"
+        },
+        {
+          id: "zen",
+          name: "Zen",
+          twitch: "zenrll",
+          youtube: "https://www.youtube.com/@ZenRL",
+          rlRank: "Supersonic Legend",
+          status: "unknown"
+        },
+        {
+          id: "feer",
+          name: "Feer",
+          twitch: "feer",
+          youtube: "https://www.youtube.com/@FeerRL",
+          rlRank: "Grand Champion III",
+          status: "unknown"
+        },
+        {
+          id: "johnnyboi",
+          name: "JohnnyBoi_i",
+          twitch: "johnnyboi_i",
+          youtube: "https://www.youtube.com/@JohnnyBoi_i",
+          rlRank: "Grand Champion II",
+          status: "unknown"
+        }
+      ],
+      mc: [
+        {
+          id: "basti",
+          name: "BastiGHG",
+          twitch: "bastighg",
+          youtube: "https://www.youtube.com/@BastiGHG",
+          mcName: "BastiGHG",
+          status: "unknown"
+        },
+        {
+          id: "papaplatte",
+          name: "Papaplatte",
+          twitch: "papaplatte",
+          youtube: "https://www.youtube.com/@Papaplatte",
+          mcName: "Papaplatte",
+          status: "unknown"
+        },
+        {
+          id: "trymacs",
+          name: "Trymacs",
+          twitch: "trymacs",
+          youtube: "https://www.youtube.com/@Trymacs",
+          mcName: "Trymacs",
+          status: "unknown"
+        },
+        {
+          id: "rewinside",
+          name: "Rewinside",
+          twitch: "rewinside",
+          youtube: "https://www.youtube.com/@rewinside",
+          mcName: "rewinside",
+          status: "unknown"
+        },
+        {
+          id: "letstutes",
+          name: "LetsTutes",
+          twitch: "letstutes",
+          youtube: "https://www.youtube.com/@LetsTutes",
+          mcName: "LetsTutes",
+          status: "unknown"
+        },
+        {
+          id: "varion",
+          name: "Varion",
+          twitch: "varion",
+          youtube: "https://www.youtube.com/@Varion",
+          mcName: "Varion",
+          status: "unknown"
+        }
+      ]
+    };
 
-        let currentCategory = null;
+    // Aktueller Modus (Standard: Rocket League, umschaltbar zu Minecraft)
+    let currentMode = "rl";
 
-        function showCategorySelector() {
-            currentCategory = null;
-            document.getElementById('category-selector-screen').classList.remove('hidden');
-            document.getElementById('dashboard-screen').classList.add('hidden');
-            document.getElementById('nav-category-toggle').classList.add('hidden');
-            document.getElementById('nav-placeholder').classList.remove('hidden');
+    // Modus festlegen (Nur RL oder Nur MC)
+    function setMode(mode) {
+      currentMode = mode;
+      
+      const btnRl = document.getElementById('btn-rl');
+      const btnMc = document.getElementById('btn-mc');
+
+      const activeClass = "bg-zinc-800 text-white shadow-sm";
+      const inactiveClass = "text-zinc-400 hover:text-zinc-200";
+
+      if (mode === 'rl') {
+        btnRl.className = `px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${activeClass}`;
+        btnMc.className = `px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${inactiveClass}`;
+      } else {
+        btnMc.className = `px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${activeClass}`;
+        btnRl.className = `px-4 py-1.5 rounded-lg text-xs font-semibold tracking-wide transition-all duration-150 ${inactiveClass}`;
+      }
+
+      renderHeaderTitle();
+      renderList();
+    }
+
+    // Header Titel rendern (Rocket League Name vs Minecraft Text)
+    function renderHeaderTitle() {
+      const container = document.getElementById('category-title');
+      if (currentMode === 'rl') {
+        container.innerHTML = `
+          <span class="text-lg font-black tracking-wider uppercase text-zinc-100">Rocket League</span>
+        `;
+      } else {
+        container.innerHTML = `
+          <span class="text-lg font-black tracking-wider uppercase text-zinc-100">Minecraft</span>
+        `;
+      }
+    }
+
+    // Avatar URL für Minecraft / Rocket League generieren
+    function getAvatarUrl(streamer) {
+      if (currentMode === 'mc' && streamer.mcName) {
+        return `https://mc-heads.net/avatar/${encodeURIComponent(streamer.mcName)}/64`;
+      }
+      return `https://api.dicebear.com/7.x/identicon/svg?seed=${encodeURIComponent(streamer.twitch)}`;
+    }
+
+    function handleAvatarError(img, streamerId) {
+      const streamer = streamersData[currentMode].find(s => s.id === streamerId);
+      if (!streamer) return;
+
+      if (currentMode === 'mc' && streamer.mcName && !img.dataset.triedMinotar) {
+        img.dataset.triedMinotar = "true";
+        img.src = `https://minotar.net/helm/${encodeURIComponent(streamer.mcName)}/64`;
+        return;
+      }
+      if (!img.dataset.fallbackDone) {
+        img.dataset.fallbackDone = "true";
+        img.src = `https://mc-heads.net/avatar/MHF_Steve/64`;
+      }
+    }
+
+    // Automatische Twitch GQL Status-Abfrage (Läuft im Hintergrund ohne manuellen Button)
+    async function fetchLiveStatus() {
+      const allStreamers = [...streamersData.rl, ...streamersData.mc];
+      const usernames = allStreamers.map(s => s.twitch);
+
+      const CLIENT_ID = 'kimne78kx3ncx6brl4h56w85hj18p7';
+      const GQL_ENDPOINT = 'https://gql.twitch.tv/gql';
+
+      const query = usernames.map((name, idx) => `
+        u${idx}: user(login: "${name.toLowerCase()}") {
+          stream {
+            id
+          }
+        }
+      `).join('\n');
+
+      try {
+        const response = await fetch(GQL_ENDPOINT, {
+          method: 'POST',
+          headers: {
+            'Client-ID': CLIENT_ID,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ query: `query { ${query} }` })
+        });
+
+        if (!response.ok) throw new Error("Netzwerkfehler");
+
+        const data = await response.json();
+        
+        if (data && data.data) {
+          usernames.forEach((name, idx) => {
+            const userData = data.data[`u${idx}`];
+            const isLive = !!(userData && userData.stream && userData.stream.id);
+            const status = isLive ? 'live' : 'offline';
+
+            // Status in beiden Listen aktualisieren
+            const rlItem = streamersData.rl.find(s => s.twitch.toLowerCase() === name.toLowerCase());
+            if (rlItem) rlItem.status = status;
+
+            const mcItem = streamersData.mc.find(s => s.twitch.toLowerCase() === name.toLowerCase());
+            if (mcItem) mcItem.status = status;
+          });
+        }
+      } catch (err) {
+        console.warn("Status konnte nicht ermittelt werden (Netzwerk/CORS):", err);
+        // Falls Fehler auftritt -> Status bleibt/wird 'unknown' (Ausrufezeichen wird angezeigt)
+        allStreamers.forEach(s => {
+          if (s.status !== 'live') {
+            s.status = 'unknown';
+          }
+        });
+      }
+
+      // Sortierung: Live Streamer stehen immer ganz oben
+      sortStreamers();
+      renderList();
+    }
+
+    function sortStreamers() {
+      ['rl', 'mc'].forEach(key => {
+        streamersData[key].sort((a, b) => {
+          if (a.status === 'live' && b.status !== 'live') return -1;
+          if (a.status !== 'live' && b.status === 'live') return 1;
+          return 0;
+        });
+      });
+    }
+
+    // Render-Funktion für die Listenzeilen über die volle Breite
+    function renderList() {
+      const container = document.getElementById('streamer-list');
+      const items = streamersData[currentMode];
+
+      container.innerHTML = items.map(streamer => {
+        const avatarUrl = getAvatarUrl(streamer);
+
+        // Status Indikator Badge oben links am Avatar
+        let statusBadge = '';
+        if (streamer.status === 'live') {
+          // Pulsierender Roter Punkt bei Live
+          statusBadge = `
+            <div class="absolute -top-1 -left-1 w-3.5 h-3.5 flex items-center justify-center z-10" title="LIVE">
+              <span class="live-dot-pulse absolute w-full h-full rounded-full bg-red-500"></span>
+              <span class="relative w-2.5 h-2.5 rounded-full bg-red-500 border border-zinc-950"></span>
+            </div>
+          `;
+        } else if (streamer.status === 'unknown') {
+          // Ausrufezeichen wenn nichts herausgefunden werden konnte
+          statusBadge = `
+            <div class="absolute -top-1.5 -left-1.5 w-4 h-4 bg-amber-500 text-zinc-950 font-bold text-[10px] rounded-full flex items-center justify-center border border-zinc-950 z-10" title="Status unbekannt">
+              !
+            </div>
+          `;
         }
 
-        function switchCategory(cat) {
-            currentCategory = cat;
-            document.getElementById('category-selector-screen').classList.add('hidden');
-            document.getElementById('dashboard-screen').classList.remove('hidden');
-            document.getElementById('nav-category-toggle').classList.remove('hidden');
-            document.getElementById('nav-placeholder').classList.add('hidden');
+        return `
+          <div class="w-full flex items-center justify-between p-3.5 sm:p-4 rounded-xl bg-zinc-900/60 border border-zinc-800/70 hover:border-zinc-700/80 transition-all duration-200">
+            
+            <!-- Linke Seite: Avatar & Streamer Details -->
+            <div class="flex items-center space-x-4 min-w-0">
+              
+              <!-- Avatar Container mit Status Badge -->
+              <div class="relative flex-shrink-0">
+                <img 
+                  src="${avatarUrl}" 
+                  alt="${streamer.name}" 
+                  onerror="handleAvatarError(this, '${streamer.id}')"
+                  class="w-11 h-11 sm:w-12 sm:h-12 rounded-lg bg-zinc-800 object-cover border border-zinc-800 shadow-sm"
+                />
+                ${statusBadge}
+              </div>
 
-            const btnRl = document.getElementById('btn-nav-rl');
-            const btnMc = document.getElementById('btn-nav-mc');
-
-            if (cat === 'rl') {
-                btnRl.className = "px-4 py-1.5 rounded-lg text-xs font-extrabold bg-white text-black shadow-sm";
-                btnMc.className = "px-4 py-1.5 rounded-lg text-xs font-bold text-neutral-400 hover:text-white";
-                document.getElementById('dashboard-title').innerText = "Rocket League Streamer";
-                document.getElementById('dashboard-subtitle').innerText = "Ränge stehen direkt unter dem Streamer-Namen.";
-            } else {
-                btnMc.className = "px-4 py-1.5 rounded-lg text-xs font-extrabold bg-white text-black shadow-sm";
-                btnRl.className = "px-4 py-1.5 rounded-lg text-xs font-bold text-neutral-400 hover:text-white";
-                document.getElementById('dashboard-title').innerText = "Minecraft Streamer";
-                document.getElementById('dashboard-subtitle').innerText = "3D Head-Avatare & direkte Kanal-Links.";
-            }
-
-            renderStreamers();
-        }
-
-        // WhosLive API / Status Query Logic
-        async function refreshStatus() {
-            const icon = document.getElementById('refresh-icon');
-            icon.classList.add('fa-spin');
-
-            // Synchronisiere & rendere
-            renderStreamers();
-
-            setTimeout(() => {
-                icon.classList.remove('fa-spin');
-            }, 600);
-        }
-
-        function renderStreamers() {
-            const list = document.getElementById('streamer-list');
-            list.innerHTML = '';
-
-            let filtered = streamers.filter(s => s.category === currentCategory);
-
-            // Strikte Sortierung: Alle verifiziert Aktiven nach ganz oben
-            filtered.sort((a, b) => {
-                const aLive = a.isTwitchLive || a.isYtLive;
-                const bLive = b.isTwitchLive || b.isYtLive;
-                if (aLive && !bLive) return -1;
-                if (!aLive && bLive) return 1;
-                return a.name.localeCompare(b.name);
-            });
-
-            if (filtered.length === 0) {
-                list.innerHTML = `<div class="p-12 text-center text-neutral-500 text-xs">Keine Streamer in dieser Kategorie.</div>`;
-                return;
-            }
-
-            filtered.forEach(s => {
-                const isLive = s.isTwitchLive || s.isYtLive;
-                const container = document.createElement('div');
+              <!-- Streamer Name & Ingame Rang -->
+              <div class="min-w-0 flex-1">
+                <h2 class="font-semibold text-sm sm:text-base text-zinc-100 truncate tracking-tight">
+                  ${streamer.name}
+                </h2>
                 
-                // Full-width Zeile
-                container.className = `streamer-row w-full bg-neutral-900/60 border ${isLive ? 'border-red-600/80 bg-red-950/20' : 'border-neutral-800/80'} hover:border-neutral-600 rounded-2xl p-3.5 flex items-center justify-between gap-4`;
+                <!-- Nur bei Rocket League: Rang direkt unter dem Namen -->
+                ${currentMode === 'rl' ? `
+                  <div class="text-xs text-zinc-400 font-medium mt-0.5">
+                    ${streamer.rlRank}
+                  </div>
+                ` : ''}
+              </div>
 
-                // Linker Block (Icon + Name + Rang direkt darunter)
-                const leftBlock = document.createElement('div');
-                leftBlock.className = "flex items-center gap-3.5 flex-grow";
+            </div>
 
-                if (currentCategory === 'mc') {
-                    const mcName = s.mcUser || s.name;
-                    const headUrl = `https://mc-heads.net/avatar/${encodeURIComponent(mcName)}/48`;
+            <!-- Rechte Seite: Twitch & YouTube Plattform Buttons -->
+            <div class="flex items-center space-x-2 flex-shrink-0 ml-4">
+              
+              <!-- Twitch Button -->
+              <a 
+                href="https://twitch.tv/${streamer.twitch}" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                class="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-purple-950/40 border border-purple-800/40 text-purple-300 hover:bg-purple-900/70 hover:text-white transition-colors text-xs font-medium flex items-center space-x-1.5"
+                title="Twitch Kanal"
+              >
+                <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                  <path d="M11.571 4.714h1.715v5.143H11.571zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
+                </svg>
+                <span class="hidden sm:inline">Twitch</span>
+              </a>
 
-                    leftBlock.innerHTML = `
-                        <div class="w-10 h-10 rounded-xl bg-neutral-950 border border-neutral-800 flex items-center justify-center overflow-hidden flex-shrink-0">
-                            <img src="${headUrl}" alt="${s.name}" class="w-8 h-8 object-contain"
-                                 onerror="this.onerror=null; this.src='https://crafatar.com/avatars/${encodeURIComponent(mcName)}?size=48&overlay=true';">
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-sm text-white">${s.name}</h3>
-                                ${isLive ? '<span class="text-[10px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">LIVE</span>' : ''}
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    // Rocket League Block: Rang steht direkt unter dem Namen
-                    leftBlock.innerHTML = `
-                        <div class="w-10 h-10 rounded-xl bg-neutral-950 border border-neutral-800 text-white font-black text-sm flex items-center justify-center flex-shrink-0">
-                            ${s.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div>
-                            <div class="flex items-center gap-2">
-                                <h3 class="font-bold text-sm text-white">${s.name}</h3>
-                                ${isLive ? '<span class="text-[10px] font-black text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded border border-red-500/20">LIVE</span>' : ''}
-                            </div>
-                            <!-- DIREKT UND SOFORT SICHTBARER RANG -->
-                            <div class="text-[11px] font-semibold text-neutral-400 mt-0.5 flex items-center gap-1">
-                                <span>Rang: <strong class="text-white">${s.rlRank || 'Kein Rang angegeben'}</strong></span>
-                            </div>
-                        </div>
-                    `;
-                }
+              <!-- YouTube Button -->
+              ${streamer.youtube ? `
+                <a 
+                  href="${streamer.youtube}" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  class="p-2 sm:px-3 sm:py-1.5 rounded-lg bg-red-950/40 border border-red-800/40 text-red-300 hover:bg-red-900/70 hover:text-white transition-colors text-xs font-medium flex items-center space-x-1.5"
+                  title="YouTube Kanal"
+                >
+                  <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                    <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                  </svg>
+                  <span class="hidden sm:inline">YouTube</span>
+                </a>
+              ` : ''}
 
-                // Rechter Block (Twitch & YouTube Buttons mit Live-Punkt)
-                const rightBlock = document.createElement('div');
-                rightBlock.className = "flex items-center gap-2 flex-shrink-0";
+            </div>
 
-                const twitchUser = s.twitch || s.name;
-                const twitchBtn = `
-                    <a href="https://twitch.tv/${twitchUser}" target="_blank" rel="noopener" 
-                       class="relative bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-white px-3.5 py-2 rounded-xl flex items-center gap-2 text-xs font-bold transition" 
-                       title="Twitch Kanal">
-                        <i class="fa-brands fa-twitch text-sm text-purple-400"></i>
-                        <span class="hidden sm:inline">Twitch</span>
-                        ${s.isTwitchLive ? '<span class="live-dot"></span>' : ''}
-                    </a>
-                `;
+          </div>
+        `;
+      }).join('');
+    }
 
-                let ytBtn = '';
-                if (s.youtube) {
-                    const ytTarget = s.youtube.startsWith('@') ? `https://youtube.com/${s.youtube}` : `https://youtube.com/results?search_query=${encodeURIComponent(s.youtube)}`;
-                    ytBtn = `
-                        <a href="${ytTarget}" target="_blank" rel="noopener" 
-                           class="relative bg-neutral-950 hover:bg-neutral-800 border border-neutral-800 text-white px-3.5 py-2 rounded-xl flex items-center gap-2 text-xs font-bold transition" 
-                           title="YouTube Kanal">
-                            <i class="fa-brands fa-youtube text-sm text-red-500"></i>
-                            <span class="hidden sm:inline">YouTube</span>
-                            ${s.isYtLive ? '<span class="live-dot"></span>' : ''}
-                        </a>
-                    `;
-                }
+    // Beim Laden der Seite ausführen & Timer für automatische Minutentakt-Abfrage starten
+    window.onload = function() {
+      setMode('rl');
+      fetchLiveStatus();
 
-                rightBlock.innerHTML = twitchBtn + ytBtn;
-
-                container.appendChild(leftBlock);
-                container.appendChild(rightBlock);
-                list.appendChild(container);
-            });
-        }
-
-        // Add Streamer Modal Controls
-        function toggleModal(show) {
-            const modal = document.getElementById('add-modal');
-            if (show) modal.classList.remove('hidden');
-            else modal.classList.add('hidden');
-        }
-
-        function toggleFormFields() {
-            const cat = document.getElementById('input-category').value;
-            if (cat === 'rl') {
-                document.getElementById('rl-fields').classList.remove('hidden');
-                document.getElementById('mc-fields').classList.add('hidden');
-            } else {
-                document.getElementById('rl-fields').classList.add('hidden');
-                document.getElementById('mc-fields').classList.remove('hidden');
-            }
-        }
-
-        function handleAddStreamer(e) {
-            e.preventDefault();
-            const name = document.getElementById('input-name').value.trim();
-            const category = document.getElementById('input-category').value;
-            const rlRank = document.getElementById('input-rl-rank').value.trim();
-            const mcUser = document.getElementById('input-mc-user').value.trim() || name;
-            const twitch = document.getElementById('input-twitch').value.trim() || name.toLowerCase();
-            const youtube = document.getElementById('input-yt').value.trim();
-
-            const newEntry = {
-                id: name.toLowerCase().replace(/\s+/g, ''),
-                name: name,
-                category: category,
-                rlRank: rlRank || "Grand Champion I",
-                twitch: twitch,
-                youtube: youtube,
-                mcUser: mcUser,
-                isTwitchLive: false,
-                isYtLive: false
-            };
-
-            streamers.unshift(newEntry);
-            toggleModal(false);
-            switchCategory(category);
-            document.getElementById('add-streamer-form').reset();
-            toggleFormFields();
-        }
-    </script>
+      // Automatisch jede Minute (60.000 Millisekunden) im Hintergrund abfragen
+      setInterval(fetchLiveStatus, 60000);
+    };
+  </script>
 </body>
 </html>
